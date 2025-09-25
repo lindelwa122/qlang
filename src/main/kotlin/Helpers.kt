@@ -23,3 +23,13 @@ fun prettyPrintTable(data: List<DataEntry>) {
         })
     }
 }
+
+fun getValues(entries: List<Map<String, Any>>, value: String): MutableList<Any?> {
+    val results = mutableListOf<Any?>()
+
+    for (entry in entries) {
+        results.add(entry[value])
+    }
+
+    return results
+}

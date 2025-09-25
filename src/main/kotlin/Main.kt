@@ -1,29 +1,18 @@
 package org.example
 
 import org.example.data.*
-import org.example.getValues
-
-fun getValues(entries: List<Map<String, Any>>, value: String): MutableList<Any?> {
-    var results = mutableListOf<Any?>()
-
-    for (entry in entries) {
-        results.add(entry[value])
-    }
-
-    return results
-}
 
 //TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
 // click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
 fun main() {
     val crimeData = Query(QueryChain())
         .from(crimeSceneReports())
-        .where{ data -> 
-            data["year"] == 2024 && 
-            data["month"] == 7 && 
-            data["day"] == 28 && 
+        .where( { data ->
+            data["year"] == 2024 &&
+            data["month"] == 7 &&
+            data["day"] == 28 &&
             data["street"] == "Humphrey Street"
-        }
+        })
         .select { data -> 
             mapOf("descr" to data["description"]!!) 
         }
@@ -33,12 +22,12 @@ fun main() {
 
     val interviews = Query(QueryChain())
         .from(interviews())
-        .where { data -> 
+        .where( { data ->
             data["year"] == 2024 &&
             data["month"] == 7 &&
             data["day"] == 28
-        }
-        .select { data -> 
+        })
+        .select { data ->
             mapOf(
                 "name" to data["name"]!!,
                 "transcript" to data["transcript"]!!
@@ -53,7 +42,7 @@ fun main() {
     
     val bakerySecurityLogs = Query(QueryChain())
         .from(bakerySecurityLogs())
-        .where { data -> 
+        .where( { data ->
             data["year"] == 2024 &&
             data["month"] == 7 &&
             data["day"] == 28 &&
@@ -61,7 +50,7 @@ fun main() {
             data["minute"] as Int >= 15 &&
             data["minute"] as Int <= 25 &&
             data["activity"] == "exit"
-        }
+        })
         .select { data -> 
             mapOf(
                "licensePlate" to data["licensePlate"]!! 
@@ -71,12 +60,12 @@ fun main() {
  
     val calls = Query(QueryChain())
         .from(phoneCalls())
-        .where { data -> 
+        .where( { data ->
             data["year"] == 2024 &&
             data["month"] == 7 &&
             data["day"] == 28 &&
             data["duration"] as Int <= 60
-        }
+        })
         .select { data -> 
             mapOf(
                 "caller" to data["caller"]!!,
@@ -87,13 +76,13 @@ fun main() {
 
     val transactions = Query(QueryChain())
         .from(atmTransactions())
-        .where { data ->
+        .where( { data ->
             data["year"] == 2024 &&
             data["month"] == 7 &&
             data["day"] == 28 &&
             data["atmLocation"] == "Leggett Street" &&
             data["transactionType"] == "withdraw"
-        }
+        })
         .select { data ->
             mapOf(
                 "accountNumber" to data["accountNumber"]!!
@@ -103,12 +92,12 @@ fun main() {
 
     val flights = Query(QueryChain())
         .from(flights())
-        .where { data ->
+        .where( { data ->
             data["year"] == 2024 &&
             data["month"] == 7 &&
             data["day"] == 29 &&
             data["hour"] as Int <= 11
-        }
+        })
         .select { data -> 
             mapOf(
                 "id" to data["id"]!!,
@@ -120,27 +109,27 @@ fun main() {
 
     val passengers = Query(QueryChain())
         .from(passengers())
-        .where { data -> 
+        .where( { data ->
             data["flightId"] in getValues(flights, "id")
-        }
+        })
         .execute()
 
     val bankAccounts = Query(QueryChain())
         .from(bankAccounts())
-        .where { data ->
+        .where( { data ->
             data["accountNumber"] in getValues(transactions, "accountNumber")
-        }
+        })
         .execute()
 
     val people = Query(QueryChain())
         .from(people())
-        .where { data -> 
+        .where( { data ->
             data["licensePlate"] in getValues(bakerySecurityLogs, "licensePlate") &&
             data["phoneNumber"] in getValues(calls, "caller") &&
             data["passportNumber"] in getValues(passengers, "passportNumber") &&
             data["id"] in getValues(bankAccounts, "personId")
-        }
+        })
         .execute()
     
-    println(people)
+        prettyPrintTable(people)
 }
