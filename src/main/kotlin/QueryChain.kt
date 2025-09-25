@@ -1,12 +1,14 @@
 package org.example
 
+typealias DataEntry = Map<String, Any>
+
 data class QueryChain(
-    var from: List< Map<String, Any> > = listOf(),
-    var where: MutableList< List< (Map<String, Any>) -> Boolean > > = mutableListOf(),
-    var groupBy: MutableList< (Map<String, Any>) -> String > = mutableListOf(),
-    var having: MutableList< List< (Any) -> Boolean > > = mutableListOf(),
-    var select: MutableList< (Map<String, Any>) -> Map<String, Any> > = mutableListOf(),
-    var orderBy: MutableList< (Map<String, Any>, Map<String, Any>) -> Int > = mutableListOf(),
-    var data: List< Map<String, Any> > = mutableListOf(),
+    var from: List<DataEntry> = listOf(),
+    var where: MutableList< List<(DataEntry) -> Boolean> > = mutableListOf(),
+    var groupBy: MutableList<(DataEntry) -> String> = mutableListOf(),
+    var having: MutableList< List<(Any) -> Boolean> > = mutableListOf(),
+    var select: MutableList<(DataEntry) -> DataEntry> = mutableListOf(),
+    var orderBy: MutableList<(DataEntry, DataEntry) -> Int> = mutableListOf(),
+    var data: List<DataEntry> = mutableListOf(),
 )
 

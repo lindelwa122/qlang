@@ -4,19 +4,19 @@ interface QueryInterface {
     /**
      * Retrieve data from a data source
      */
-    fun from(dataSource: List< Map<String, Any> >): Query
+    fun from(dataSource: List< DataEntry >): Query
 
     /**
      * Filters data from the data source where
      * condition is true
      */
-    fun where(condition: (Map<String, Any>) -> Boolean): Query
+    fun where(vararg condition: (DataEntry) -> Boolean): Query
 
     /**
      * Groups the data based on the columns
      * returned by the group function
      */
-    fun groupBy(group: (Map<String, Any>) -> String): Query
+    fun groupBy(group: (DataEntry) -> String): Query
 
     /**
      * Filters groups where condition is true
@@ -26,15 +26,15 @@ interface QueryInterface {
     /**
      * Selects columns to be returned from the data source
      */
-    fun select(selection: (Map<String, Any>) -> Map<String, Any>): Query
+    fun select(selection: ((DataEntry) -> DataEntry)? = null): Query
 
     /**
      * Orders the data by specified column
      */
-    fun orderBy(order: (Map<String, Any>, Map<String, Any>) -> Int): Query
+    fun orderBy(order: (DataEntry, DataEntry) -> Int): Query
 
     /**
      * Executes the query
      */
-    fun execute(): List< Map<String, Any> >
+    fun execute(): List< DataEntry >
 }

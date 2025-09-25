@@ -1,6 +1,6 @@
 package org.example
 
-fun persons(name: String, profession: String, age: Int, maritalStatus: String): MutableMap<String, Any> {
+fun person(name: String, profession: String, age: Int, maritalStatus: String): MutableMap<String, Any> {
     return mutableMapOf(
         "name" to name,
         "profession" to profession,
@@ -13,25 +13,42 @@ fun persons(name: String, profession: String, age: Int, maritalStatus: String): 
 // click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
 fun main() {
     val dataSource = mutableListOf(
-        persons(name = "Peter", profession = "teacher", age = 20, maritalStatus = "married"),
-        persons(name = "Michael", profession = "teacher", age = 50, maritalStatus = "single"),
-        persons(name = "Peter", profession = "teacher", age = 20, maritalStatus = "married"),
-        persons(name = "Anna", profession = "scientific", age = 20, maritalStatus = "married"),
-        persons(name = "Rose", profession = "scientific", age = 50, maritalStatus = "married"),
-        persons(name = "Anna", profession = "scientific", age = 20, maritalStatus = "single"),
-        persons(name = "Anna", profession = "politician", age = 50, maritalStatus = "married"),
+        person(name = "Peter", profession = "teacher", age = 22, maritalStatus = "married"),
+        person(name = "Michael", profession = "teacher", age = 51, maritalStatus = "single"),
+        person(name = "Peter", profession = "teacher", age = 19, maritalStatus = "married"),
+        person(name = "Anna", profession = "scientific", age = 22, maritalStatus = "married"),
+        person(name = "Rose", profession = "scientific", age = 47, maritalStatus = "married"),
+        person(name = "Anna", profession = "scientific", age = 29, maritalStatus = "single"),
+        person(name = "Anna", profession = "politician", age = 49, maritalStatus = "married"),
     )
 
-    val res = Query(QueryChain())
-        .select { data ->
-            mapOf(
-                "name" to data["name"]!!,
-                "profession" to data["profession"]!!,
-                "age / 10" to data["age"]!! as Int / 10
-            )
-        }
-        .from(dataSource)
-        .execute()
+    fun orderByAsc(entry1: DataEntry, entry2: DataEntry): Int {
+        val age1 = entry1["age"] as Int
+        val age2 = entry2["age"] as Int
 
-    println(res)
+        return if (age1 > age2) 1
+        else if (age1 < age2) -1
+        else 0
+    }
+
+//    val res = Query()
+//        .select { entry ->
+//            mapOf("age" to entry["age"]!!, "name" to entry["name"]!!)
+//        }
+//        .from(dataSource)
+////        .where({ entry -> entry["profession"] == "teacher" })
+////        .where({ entry -> entry["maritalStatus"] == "married"})
+//        .orderBy(::orderByAsc)
+//        .execute()
+
+    val query = Query()
+    var res = query.select { entry ->
+            mapOf("age" to entry["age"]!!, "name" to entry["name"]!!)
+        }
+
+    res = res.from(dataSource)
+
+    res = res.orderBy(::orderByAsc)
+
+    prettyPrintTable(res.execute())
 }

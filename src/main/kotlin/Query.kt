@@ -1,22 +1,25 @@
 package org.example
 
-class Query(val queryChain: QueryChain) : QueryInterface {
+import org.example.exceptions.DuplicateFromError
+import org.example.exceptions.DuplicateSelectError
+
+class Query(val queryChain: QueryChain = QueryChain()) : QueryInterface {
 
     override fun from(dataSource: List< Map<String, Any >>): Query {
         if (this.queryChain.from.isNotEmpty()) {
-            throw Exception("from should be empty")
+            throw DuplicateFromError("from can only be used exactly once")
         }
 
         this.queryChain.from = dataSource
         return Query(this.queryChain)
     }
 
-    override fun where(condition: Function1<Map<String, Any>, Boolean>): Query {
-        this.queryChain.where.add(listOf(condition))
+    override fun where(vararg condition: Function1<DataEntry, Boolean>): Query {
+        this.queryChain.where.add(condition.toList())
         return Query(this.queryChain)
     }
 
-    override fun groupBy(group: Function1<Map<String, Any>, String>): Query {
+    override fun groupBy(group: Function1<DataEntry, String>): Query {
         this.queryChain.groupBy.add(group)
         return Query(this.queryChain)
     }
@@ -26,23 +29,48 @@ class Query(val queryChain: QueryChain) : QueryInterface {
         return Query(this.queryChain)
     }
 
-    override fun select(selection: Function1<Map<String, Any>, Map<String, Any>>): Query {
+    override fun select(selection: (Function1<DataEntry, DataEntry>)?): Query {
+        if (selection == null) return Query(this.queryChain)
+
+        if (this.queryChain.select.isNotEmpty()) {
+            throw DuplicateSelectError("select can only be used once")
+        }
+
         this.queryChain.select.add(selection)
         return Query(this.queryChain)
     }
 
-    override fun orderBy(order: (Map<String, Any>, Map<String, Any>) -> Int): Query {
+    override fun orderBy(order: (DataEntry, DataEntry) -> Int): Query {
         this.queryChain.orderBy.add(order)
         return Query(this.queryChain)
     }
 
     private fun groupByOp(
-        groups: MutableList< (Map<String, Any>) -> String >): List<Map<String, Any>>
+        dataSource: List< DataEntry >,
+        groups: MutableList< (DataEntry) -> String >): List<DataEntry>
     {
-        val dataSource = this.queryChain.data
-        if (groups.isEmpty()) return dataSource
+        if (groups.isEmpty()) {
+            val sortedDataSource =
+                if (this.queryChain.orderBy.isNotEmpty()) this.sort(dataSource) else dataSource
 
-        val groupings = mutableMapOf<String, MutableList<Map<String, Any>>>()
+            val results = mutableListOf<DataEntry>()
+
+            if (this.queryChain.select.isNotEmpty()) {
+                val selection = this.queryChain.select[0]
+
+                for (datum in sortedDataSource) {
+                    results.add(selection(datum))
+                }
+            }
+
+            else {
+                results.addAll(sortedDataSource)
+            }
+
+            return results
+        }
+
+        val groupings = mutableMapOf<String, MutableList<DataEntry>>()
         val function = groups[0]
         for (datum in dataSource) {
             val group: String = function(datum)
@@ -56,11 +84,13 @@ class Query(val queryChain: QueryChain) : QueryInterface {
             }
         }
 
-        val results = mutableListOf<Map<String, Any>>()
+        val results = mutableListOf<DataEntry>()
         for (entry in groupings.entries) {
             val key = entry.key
+            val value = entry.value
 
             results.add( mapOf(Pair(key, this.groupByOp(
+                dataSource = value,
                 groups = groups.subList(1, groups.size)
             ))) )
         }
@@ -69,37 +99,42 @@ class Query(val queryChain: QueryChain) : QueryInterface {
     }
 
     private fun fromOp() {
-        if (this.queryChain.from.isEmpty()) {
-            throw Exception("from was not used to specify the data source")
-        }
-
         this.queryChain.data = this.queryChain.from
     }
 
     private fun whereOp() {
         if (this.queryChain.where.isEmpty()) return
 
-        val filteredData = mutableListOf< Map<String, Any> >()
+        val filteredData = mutableListOf< DataEntry >()
 
         for (datum in this.queryChain.data) {
+            var andRes = false
             for (functionArr in this.queryChain.where) {
-                var addRes = false
+                var orRes = false
 
                 for (function in functionArr) {
                     if (function.invoke(datum)) {
-                        addRes = true
+                        orRes = true
+                        break
                     }
 
                     else {
-                        addRes = false
-                        break
+                        orRes = false
                     }
                 }
 
-                if (addRes) {
-                    filteredData.add(datum)
+                if (orRes) {
+                    andRes = true
+                }
+
+                else {
+                    andRes = false
                     break
                 }
+            }
+
+            if (andRes) {
+                filteredData.add(datum)
             }
         }
 
@@ -113,7 +148,7 @@ class Query(val queryChain: QueryChain) : QueryInterface {
             throw Exception("having should be used along with groupBy")
         }
 
-        val filteredGroups = mutableListOf< Map<String, Any> >()
+        val filteredGroups = mutableListOf< DataEntry >()
 
         for (datum in this.queryChain.data) {
             for (functionArr in this.queryChain.having) {
@@ -142,7 +177,7 @@ class Query(val queryChain: QueryChain) : QueryInterface {
 
     private fun selectOp() {
         if (this.queryChain.select.isNotEmpty()) {
-            val selectedData = mutableListOf<Map<String, Any>>()
+            val selectedData = mutableListOf<DataEntry>()
 
             for (datum in this.queryChain.data) {
                 selectedData.add(this.queryChain.select[0].invoke(datum))
@@ -152,14 +187,14 @@ class Query(val queryChain: QueryChain) : QueryInterface {
         }
     }
 
-    private fun sort() {
-        if (this.queryChain.orderBy.isEmpty()) return
-        this.queryChain.data = this.queryChain.data.sortedWith { val1, val2 ->
+    private fun sort(dataSource: List<DataEntry>): List<DataEntry> {
+        if (this.queryChain.orderBy.isEmpty()) return dataSource
+        return dataSource.sortedWith { val1, val2 ->
             this.queryChain.orderBy[0].invoke(val1, val2)
         }
     }
 
-    override fun execute(): List< Map<String, Any> > {
+    override fun execute(): List< DataEntry > {
         // FROM: Get data from the data source
         this.fromOp()
 
@@ -167,16 +202,20 @@ class Query(val queryChain: QueryChain) : QueryInterface {
         this.whereOp()
 
         // GROUP_BY: Group the data using these functions
-        this.groupByOp(groups = this.queryChain.groupBy)
+        if (this.queryChain.groupBy.isNotEmpty()) {
+            this.queryChain.data = this.groupByOp(dataSource = this.queryChain.data, groups = this.queryChain.groupBy)
 
-        // HAVING: Filter groups
-        this.havingOp()
+            // HAVING: Filter groups
+            this.havingOp()
+        }
 
-        // SELECT: Select columns to return
-        this.selectOp()
+        else {
+            // SORT: Sort data
+            this.queryChain.data = this.sort(this.queryChain.data)
 
-        // SORT: Sort data
-        this.sort()
+            // SELECT: Select columns to return
+            this.selectOp()
+        }
 
         return this.queryChain.data
     }
